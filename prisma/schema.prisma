@@ -1,0 +1,213 @@
+generator client {
+    provider = "prisma-client-js"
+    output   = "../src/generated/prisma"
+}
+
+datasource db {
+    provider = "mongodb"
+    url      = env("DATABASE_URL")
+}
+
+model Channel {
+    id          String   @id @default(auto()) @map("_id") @db.ObjectId
+    name        String?  @unique
+    slug        String?  @unique
+    region      String?
+    description String?
+    logo        String?
+    ibu_kota    String?
+    pulau       String?
+    luas        Int?
+    penduduk    Int?
+    bahasa      String[]
+    budaya      String[]
+    kuliner     String[]
+    wisata      String[]
+    deskripsi2  String?
+    post        Post[]
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    @@map("channels")
+}
+
+model Post {
+    id        String      @id @default(auto()) @map("_id") @db.ObjectId
+    content   String
+    images    PostImage[]
+    authorId  String      @db.ObjectId
+    author    User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+    likes     Like[]
+    comments  Comment[]
+    createdAt DateTime    @default(now())
+    updatedAt DateTime    @updatedAt
+    channel   Channel     @relation(fields: [channelId], references: [id])
+    channelId String      @db.ObjectId
+
+    @@map("posts")
+}
+
+enum Status {
+    pending
+    success
+}
+
+model PostImage {
+    id        String   @id @default(auto()) @map("_id") @db.ObjectId
+    url       String
+    post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+    postId    String   @db.ObjectId
+    status    Status   @default(pending)
+    createdAt DateTime @default(now())
+
+    @@map("post_images")
+}
+
+model Comment {
+    id      String @id @default(auto()) @map("_id") @db.ObjectId
+    content String
+
+    author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+    authorId String @db.ObjectId
+
+    post   Post?   @relation(fields: [postId], references: [id], onDelete: Cascade)
+    postId String? @db.ObjectId
+
+    parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+    parentId String?   @db.ObjectId
+    replies  Comment[] @relation("CommentReplies")
+
+    targetUser   User?   @relation("UserComments", fields: [targetUserId], references: [id], onDelete: Cascade)
+    targetUserId String? @db.ObjectId
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("comments")
+}
+
+model Like {
+    id        String   @id @default(auto()) @map("_id") @db.ObjectId
+    userId    String   @db.ObjectId
+    postId    String   @db.ObjectId
+    createdAt DateTime @default(now())
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+    post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, postId])
+    @@map("likes")
+}
+
+model Follow {
+    id          String   @id @default(auto()) @map("_id") @db.ObjectId
+    followerId  String   @db.ObjectId
+    followingId String   @db.ObjectId
+    createdAt   DateTime @default(now())
+
+    follower  User @relation("following", fields: [followerId], references: [id], onDelete: Cascade)
+    following User @relation("followers", fields: [followingId], references: [id], onDelete: Cascade)
+
+    @@unique([followerId, followingId])
+    @@map("follows")
+}
+
+enum Role {
+    admin
+    user
+}
+
+model User {
+    id            String    @id @default(auto()) @map("_id") @db.ObjectId
+    name          String?
+    email         String?   @unique
+    emailVerified DateTime?
+    image         String?
+    role          Role      @default(user)
+    createdAt     DateTime  @default(now())
+    updatedAt     DateTime  @default(now()) @updatedAt
+    accounts      Account[]
+    sessions      Session[]
+    Post          Post[]
+    Comment       Comment[]
+    Like          Like[]
+    followers     Follow[]  @relation("followers")
+    following     Follow[]  @relation("following")
+
+    receivedComments Comment[] @relation("UserComments")
+
+    @@map("user")
+}
+
+model Account {
+    id                String  @id @default(auto()) @map("_id") @db.ObjectId
+    userId            String  @db.ObjectId
+    type              String
+    provider          String
+    providerAccountId String
+    refresh_token     String? @db.String
+    access_token      String? @db.String
+    expires_at        Int?
+    token_type        String?
+    scope             String?
+    id_token          String? @db.String
+    session_state     String?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([provider, providerAccountId])
+}
+
+model Session {
+    id           String   @id @default(auto()) @map("_id") @db.ObjectId
+    sessionToken String   @unique
+    userId       String   @db.ObjectId
+    expires      DateTime
+    user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+model VerificationToken {
+    id         String   @id @default(auto()) @map("_id") @db.ObjectId
+    identifier String
+    token      String
+    expires    DateTime
+
+    @@unique([identifier, token])
+}
+
+model ModalConfig {
+    id         String   @id @default(auto()) @map("_id") @db.ObjectId
+    url        String
+    token      String
+    usageCount Int      @default(0)
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+
+    @@map("modal_configs")
+}
+
+model QwenToken {
+    id         String   @id @default(auto()) @map("_id") @db.ObjectId
+    token      String
+    usageCount Int      @default(0)
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+
+    @@map("qwen_tokens")
+}
+
+model GeminiConfig {
+    id         String   @id @default(auto()) @map("_id") @db.ObjectId
+    url        String
+    usageCount Int      @default(0)
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+
+    @@map("gemini_configs")
+}
